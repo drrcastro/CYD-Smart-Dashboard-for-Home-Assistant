@@ -22,6 +22,7 @@ Built with **ESPHome** and **LVGL**, this project allows you to monitor 6 key Ho
 * **Display:** 2.8" ILI9341 (320x240).
 * **Touch:** XPT2046.
 * **Sensor:** Onboard LDR (Light Dependent Resistor) on GPIO34 for auto-brightness.
+* **Case:** 3D Printed Case ([I used this one](https://www.thingiverse.com/thing:6653040))
 
 ## 🚀 Installation
 
@@ -33,13 +34,7 @@ Built with **ESPHome** and **LVGL**, this project allows you to monitor 6 key Ho
 1.  Create a new device in ESPHome.
 2.  Copy the content of `cyd_dashboard.yaml` from this repository.
 3.  Paste it into your new device's configuration.
-
-### 3. Configure Secrets
-Ensure your `secrets.yaml` in ESPHome has your WiFi credentials:
-```yaml
-wifi_ssid: "YOUR_WIFI_NAME"
-wifi_password: "YOUR_WIFI_PASSWORD"
-```
+4. Change the inicial config to match yours
 
 ## ⚙️ Configuration (The Easy Part)
 
