@@ -1,0 +1,607 @@
+esphome:
+  name: YOUR DEVICE NAME
+  friendly_name: YOUR DEVICE FRIENDLY NAME
+  on_boot:
+    priority: -10
+    then:
+      - light.turn_on: backlight
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+  # DEBUG level to see LDR sensor values
+  level: DEBUG
+
+api:
+  encryption:
+    key: "YOUR API KEY"
+
+ota:
+  - platform: esphome
+    password: "YOUR OTA PASSWORD"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Cyd Fallback Hotspot"
+    password: "1fuPtnYrqCC6"
+
+captive_portal:
+
+
+
+substitutions:
+  # ==============================================================================
+  #  CONFIGURATION HEADER (TEMPLATE)
+  #  Customize your sensors, icons, and labels here.
+  # ==============================================================================
+
+  # --- SENSOR 1: SOLAR ---
+  s1_entity: "sensor.foxess_solar_power"
+  s1_icon: "\uec0f"
+  s1_label: "Solar Power"
+  s1_unit: "W"
+  s1_tap_action: "script.dummy_script"
+
+  # --- SENSOR 2: WATER ---
+  s2_entity: "sensor.esp_temp_temperatura_agua"
+  s2_icon: "\uf061"
+  s2_label: "Water Temp"
+  s2_unit: "°C"
+  s2_tap_action: "script.trigger_water_heater"
+
+  # --- SENSOR 3: GRID ---
+  s3_entity: "sensor.foxess_grid_consumption_power"
+  s3_icon: "\uf102"
+  s3_label: "Grid Power"
+  s3_unit: "W"
+  s3_tap_action: "script.dummy_script"
+
+  # --- SENSOR 4: OUTDOOR ---
+  s4_entity: "sensor.clima_exterior_temperatura"
+  s4_icon: "\ue1ff"
+  s4_label: "Outdoor"
+  s4_unit: "°C"
+  s4_tap_action: "script.dummy_script"
+
+  # --- SENSOR 5: BATTERY ---
+  s5_entity: "sensor.foxess_bat_soc"
+  s5_icon: "\ue1a3" # Default icon (dynamic logic overrides this below)
+  s5_label: "Home Battery"
+  s5_unit: "%%"    # Use double % to escape the character
+  s5_tap_action: "script.dummy_script"
+
+  # --- SENSOR 6: HUMIDITY ---
+  s6_entity: "sensor.clima_exterior_humidade"
+  s6_icon: "\ue798"
+  s6_label: "Humidity"
+  s6_unit: "%%"
+  s6_tap_action: "script.dummy_script"
+
+http_request:
+  timeout: 5s
+
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: backlight_pwm
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: Display Backlight
+    id: backlight
+    restore_mode: ALWAYS_ON
+    default_transition_length: 0.5s
+
+spi:
+  - id: tft
+    clk_pin: GPIO14
+    mosi_pin: GPIO13
+    miso_pin: GPIO12
+  - id: touch
+    clk_pin: GPIO25
+    mosi_pin: GPIO32
+    miso_pin: GPIO39
+
+display:
+  - platform: ili9xxx
+    id: my_display
+    model: ILI9341
+    spi_id: tft
+    cs_pin: GPIO15
+    dc_pin: GPIO2
+    auto_clear_enabled: false
+    invert_colors: false
+    color_order: RGB
+    rotation: 180
+    dimensions: 
+      width: 320
+      height: 240
+
+touchscreen:
+  platform: xpt2046
+  id: my_touchscreen
+  spi_id: touch
+  cs_pin: GPIO33
+  calibration:
+    x_min: 220
+    x_max: 3756
+    y_min: 394
+    y_max: 3749
+  transform:
+    swap_xy: true
+    mirror_x: false
+    mirror_y: false
+
+# --- FONTS ---
+font:
+  - file: "gfonts://Roboto"
+    id: roboto_24
+    size: 24
+    glyphs: "0123456789%.°WCckmVA "
+  - file: "gfonts://Roboto"
+    id: roboto_16
+    size: 16
+    glyphs: "0123456789:/- abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚáéíóúÀàÇçÃãÕõ°"
+  - file: "gfonts://Roboto"
+    id: roboto_12
+    size: 12
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÁÉÍÓÚáéíóúÀàÇçÃãÕõ°"
+  - file: "gfonts://Material Icons"
+    id: icon_font_32
+    size: 32
+    # IMPORTANT: If you change icons in the header, make sure the glyph code
+    # exists in this list, otherwise it won't appear!
+    glyphs: "\uec0f\uf102\ue1a3\uf061\ue1ff\ue798\uebd2\uebd4\uebe2\uebdd\uebe0\uebd9"
+
+# --- TIME ---
+time:
+  - platform: homeassistant
+    id: esptime
+    on_time:
+      - seconds: 0
+        then:
+          - lvgl.label.update:
+              id: label_clock
+              text: !lambda 'return id(esptime).now().strftime("%H:%M");'
+          - lvgl.label.update:
+              id: label_date
+              text: !lambda |-
+                static const char *const dias[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+                auto now = id(esptime).now();
+                return str_sprintf("%s %02d/%02d", dias[now.day_of_week - 1], now.day_of_month, now.month);
+
+# --- AUTO BRIGHTNESS (POLYNOMIAL CURVE) ---
+sensor:
+  # 1. RAW Sensor: Reads voltage for debugging
+  - platform: adc
+    pin: GPIO34
+    name: "LDR Voltage"
+    id: ldr_volts
+    update_interval: 1s
+    attenuation: 12db
+    filters:
+      - sliding_window_moving_average: {window_size: 10, send_every: 1}
+    on_value:
+      then:
+        - logger.log: 
+            format: "LDR Volts: %.2f V"
+            args: [ 'x' ]
+
+  # 2. PROCESSED Sensor: Smooth Inverted Curve
+  - platform: template
+    name: "Target Brightness"
+    id: ldr_processed
+    update_interval: 1s
+    lambda: |-
+      return id(ldr_volts).state;
+    filters:
+      # POLYNOMIAL CURVE (Degree 3) - Inverted Logic
+      # CYD LDR Logic: Lower Voltage = More Light
+      - calibrate_polynomial:
+          degree: 3
+          datapoints:
+            - 0.00 -> 1.00  # 0V -> 100%
+            - 0.14 -> 1.00  # 0.14V -> 100% (Max Brightness)
+            - 0.60 -> 0.70  # 0.6V -> 70% (Keep it bright)
+            - 1.00 -> 0.30  # 1.0V -> 30% (Drop quickly)
+            - 1.40 -> 0.05  # 1.4V -> 5% (Minimum)
+            - 3.00 -> 0.05  # Safety clamp
+      
+      - clamp: {min_value: 0.05, max_value: 1.00}
+    
+    on_value:
+      then:
+        - logger.log: 
+            format: "Calculated Brightness: %.0f %%"
+            args: [ 'x * 100' ]
+        - light.turn_on:
+            id: backlight
+            brightness: !lambda return x; 
+            transition_length: 1s
+
+  # ==============================================================================
+  #  SENSORS
+  # ==============================================================================
+
+  # S1: Solar
+  - platform: homeassistant
+    id: ha_sensor_1
+    entity_id: ${s1_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: val_s1
+            text: !lambda 'return str_sprintf("%.0f${s1_unit}", x);'
+        - lvgl.label.update:
+            id: icon_s1
+            text_color: !lambda |-
+              if (x > 2000) return lv_color_hex(0xFFA500);
+              if (x > 0) return lv_color_hex(0xFFD700);
+              return lv_color_hex(0x888888);
+
+  # S2: Water
+  - platform: homeassistant
+    id: ha_sensor_2
+    entity_id: ${s2_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: val_s2
+            text: !lambda 'return str_sprintf("%.1f${s2_unit}", x);'
+        - lvgl.label.update:
+            id: icon_s2
+            text_color: !lambda |-
+              if (x >= 45) return lv_color_hex(0xE05400);
+              if (x >= 40) return lv_color_hex(0x33A400);
+              if (x >= 30) return lv_color_hex(0x28FFB6);
+              return lv_color_hex(0x00BFFF);
+
+  # S3: Grid
+  - platform: homeassistant
+    id: ha_sensor_3
+    entity_id: ${s3_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: val_s3
+            text: !lambda 'return str_sprintf("%.0f${s3_unit}", x);'
+        - lvgl.label.update:
+            id: icon_s3
+            text_color: !lambda |-
+              if (x > 3000) return lv_color_hex(0xFF5252);
+              return lv_color_hex(0xFF6347);
+
+  # S4: Outdoor
+  - platform: homeassistant
+    id: ha_sensor_4
+    entity_id: ${s4_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: val_s4
+            text: !lambda 'return str_sprintf("%.1f${s4_unit}", x);'
+        - lvgl.label.update:
+            id: icon_s4
+            text_color: !lambda |-
+              if (x > 30) return lv_color_hex(0xFF5252);
+              if (x > 25) return lv_color_hex(0xFFA500);
+              if (x < 15) return lv_color_hex(0x00BFFF);
+              return lv_color_hex(0x32CD32);
+
+  # S5: Battery
+  - platform: homeassistant
+    id: ha_sensor_5
+    entity_id: ${s5_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: val_s5
+            text: !lambda 'return str_sprintf("%.0f${s5_unit}", x);'
+        - lvgl.label.update:
+            id: icon_s5
+            text: !lambda |-
+              if (x >= 90) return "\uebd2";
+              if (x >= 75) return "\uebd4";
+              if (x >= 50) return "\uebe2";
+              if (x >= 30) return "\uebdd";
+              if (x >= 20) return "\uebe0";
+              return "\uebd9";
+            text_color: !lambda |-
+              if (x >= 90) return lv_color_hex(0x008000);
+              if (x >= 75) return lv_color_hex(0x269a17);
+              if (x >= 50) return lv_color_hex(0xa6d51f);
+              if (x >= 30) return lv_color_hex(0xFFA500);
+              if (x >= 20) return lv_color_hex(0x8B0000);
+              return lv_color_hex(0x640B0B);
+
+  # S6: Humidity
+  - platform: homeassistant
+    id: ha_sensor_6
+    entity_id: ${s6_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: val_s6
+            text: !lambda 'return str_sprintf("%.0f${s6_unit}", x);'
+        - lvgl.label.update:
+            id: icon_s6
+            text_color: !lambda |-
+              if (x > 80) return lv_color_hex(0x00BFFF);
+              if (x > 60) return lv_color_hex(0x87CEEB);
+              if (x < 30) return lv_color_hex(0xFFD700);
+              return lv_color_hex(0x32CD32);
+
+
+# ==============================================================================
+#  GRAPHICAL INTERFACE (LVGL)
+# ==============================================================================
+lvgl:
+  displays: [my_display]
+  touchscreens: [my_touchscreen]
+  
+  pages:
+    - id: main_page
+      bg_color: 0x000000
+      widgets:
+        # --- HEADER ---
+        - label:
+            id: label_clock
+            text: "--:--"
+            text_font: roboto_16
+            text_color: 0xFFFFFF
+            x: 5
+            y: 5
+        - label:
+            id: label_date
+            text: "--/--"
+            text_font: roboto_16
+            text_color: 0xFFFFFF
+            align: TOP_RIGHT
+            x: -5
+            y: 5
+
+        # ==================== SENSOR 1 ====================
+        - button:
+            x: 5
+            y: 35
+            width: 150
+            height: 63
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            radius: 0
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_s1
+                  text: "${s1_icon}"
+                  text_font: icon_font_32
+                  text_color: 0xFFD700
+                  align: LEFT_MID
+                  x: 5
+              - label:
+                  text: "${s1_label}"
+                  text_font: roboto_12
+                  text_color: 0xAAAAAA
+                  align: LEFT_MID
+                  x: 45
+                  y: -12
+              - label:
+                  id: val_s1
+                  text: "--"
+                  text_font: roboto_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 45
+                  y: 12
+            on_press:
+              - homeassistant.service:
+                  service: script.turn_on
+                  data:
+                    entity_id: ${s1_tap_action}
+
+        # ==================== SENSOR 2 ====================
+        - button:
+            x: 165
+            y: 35
+            width: 150
+            height: 63
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            radius: 0
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_s2
+                  text: "${s2_icon}"
+                  text_font: icon_font_32
+                  text_color: 0x00BFFF
+                  align: LEFT_MID
+                  x: 5
+              - label:
+                  text: "${s2_label}"
+                  text_font: roboto_12
+                  text_color: 0xAAAAAA
+                  align: LEFT_MID
+                  x: 45
+                  y: -12
+              - label:
+                  id: val_s2
+                  text: "--"
+                  text_font: roboto_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 45
+                  y: 12
+            on_press:
+              - homeassistant.service:
+                  service: script.turn_on
+                  data:
+                    entity_id: ${s2_tap_action}
+
+        # ==================== SENSOR 3 ====================
+        - button:
+            x: 5
+            y: 100
+            width: 150
+            height: 63
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            radius: 0
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_s3
+                  text: "${s3_icon}"
+                  text_font: icon_font_32
+                  text_color: 0xFF6347
+                  align: LEFT_MID
+                  x: 5
+              - label:
+                  text: "${s3_label}"
+                  text_font: roboto_12
+                  text_color: 0xAAAAAA
+                  align: LEFT_MID
+                  x: 45
+                  y: -12
+              - label:
+                  id: val_s3
+                  text: "--"
+                  text_font: roboto_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 45
+                  y: 12
+            on_press:
+              - homeassistant.service:
+                  service: script.turn_on
+                  data:
+                    entity_id: ${s3_tap_action}
+
+        # ==================== SENSOR 4 ====================
+        - button:
+            x: 165
+            y: 100
+            width: 150
+            height: 63
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            radius: 0
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_s4
+                  text: "${s4_icon}"
+                  text_font: icon_font_32
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 5
+              - label:
+                  text: "${s4_label}"
+                  text_font: roboto_12
+                  text_color: 0xAAAAAA
+                  align: LEFT_MID
+                  x: 45
+                  y: -12
+              - label:
+                  id: val_s4
+                  text: "--"
+                  text_font: roboto_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 45
+                  y: 12
+            on_press:
+              - homeassistant.service:
+                  service: script.turn_on
+                  data:
+                    entity_id: ${s4_tap_action}
+
+        # ==================== SENSOR 5 ====================
+        - button:
+            x: 5
+            y: 165
+            width: 150
+            height: 63
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            radius: 0
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_s5
+                  text: "${s5_icon}"
+                  text_font: icon_font_32
+                  text_color: 0x32CD32
+                  align: LEFT_MID
+                  x: 5
+              - label:
+                  text: "${s5_label}"
+                  text_font: roboto_12
+                  text_color: 0xAAAAAA
+                  align: LEFT_MID
+                  x: 45
+                  y: -12
+              - label:
+                  id: val_s5
+                  text: "--"
+                  text_font: roboto_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 45
+                  y: 12
+            on_press:
+              - homeassistant.service:
+                  service: script.turn_on
+                  data:
+                    entity_id: ${s5_tap_action}
+
+        # ==================== SENSOR 6 ====================
+        - button:
+            x: 165
+            y: 165
+            width: 150
+            height: 63
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            radius: 0
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_s6
+                  text: "${s6_icon}"
+                  text_font: icon_font_32
+                  text_color: 0x87CEEB
+                  align: LEFT_MID
+                  x: 5
+              - label:
+                  text: "${s6_label}"
+                  text_font: roboto_12
+                  text_color: 0xAAAAAA
+                  align: LEFT_MID
+                  x: 45
+                  y: -12
+              - label:
+                  id: val_s6
+                  text: "--"
+                  text_font: roboto_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 45
+                  y: 12
+            on_press:
+              - homeassistant.service:
+                  service: script.turn_on
+                  data:
+                    entity_id: ${s6_tap_action}
