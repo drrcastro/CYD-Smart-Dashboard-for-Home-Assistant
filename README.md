@@ -18,11 +18,11 @@ Built with **ESPHome** and **LVGL**, this project allows you to monitor 6 key Ho
 
 ## 🛠️ Hardware
 
-* **Board:** ESP32-2432S028R (The standard Resistive Touch version).
-* **Display:** 2.8" ILI9341 (320x240).
+* **Board:** ESP32-2432S028.
+* **Display:** 2.8" ILI9341.
 * **Touch:** XPT2046.
 * **Sensor:** Onboard LDR (Light Dependent Resistor) on GPIO34 for auto-brightness.
-* **Case:** 3D Printed Case ([I used this one](https://www.thingiverse.com/thing:6653040))
+* **Case:** 3D Printed Case ([I used this one](https://www.thingiverse.com/thing:6653040)).
 
 ## 🚀 Installation
 
