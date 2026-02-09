@@ -4,7 +4,7 @@ A clean, fast, and fully customizable touch dashboard for the **ESP32-2432S028**
 
 Built with **ESPHome** and **LVGL**, this project allows you to monitor 6 key Home Assistant sensors and trigger automations/scripts by tapping on them. It features automatic brightness control and a header-based configuration system, making it easy to adapt to your own home without touching the complex code.
 
-![Dashboard Preview]([https://github.com/drrcastro/CYD-Smart-Dashboard-for-Home-Assistant/blob/main/preview.jpeg]
+![Dashboard Preview](/preview.jpeg)
 
 
 ## ✨ Features
