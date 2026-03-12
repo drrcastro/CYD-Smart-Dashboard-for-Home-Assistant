@@ -32,55 +32,114 @@ wifi:
 
 captive_portal:
 
-
-
 substitutions:
   # ==============================================================================
-  #  CONFIGURATION HEADER (TEMPLATE)
-  #  Customize your sensors, icons, and labels here.
+  #  CONFIGURATION HEADER (MASTER TEMPLATE)
+  #  Customize your sensors, icons, and labels below.
+  #  The variable 'x' represents the current numerical value from the HA sensor.
   # ==============================================================================
 
   # --- SENSOR 1: SOLAR ---
   s1_entity: "sensor.foxess_solar_power"
-  s1_icon: "\uec0f"
   s1_label: "Solar Power"
   s1_unit: "W"
   s1_tap_action: "script.dummy_script"
+  s1_icon: "\uec0f"
+  
+  s1_icon_logic: |-
+    return "${s1_icon}"; 
+    
+  s1_color_logic: |-
+    if (x > 2000) return lv_color_hex(0xFFA500); 
+    if (x > 0) return lv_color_hex(0xFFD700);    
+    return lv_color_hex(0x888888);               
 
   # --- SENSOR 2: WATER ---
   s2_entity: "sensor.esp_temp_temperatura_agua"
-  s2_icon: "\uf061"
   s2_label: "Water Temp"
   s2_unit: "°C"
   s2_tap_action: "script.trigger_water_heater"
+  s2_icon: "\uf061"
+
+  s2_icon_logic: |-
+    return "${s2_icon}";
+    
+  s2_color_logic: |-
+    if (x >= 45) return lv_color_hex(0xE05400); 
+    if (x >= 40) return lv_color_hex(0x33A400); 
+    if (x >= 30) return lv_color_hex(0x28FFB6); 
+    return lv_color_hex(0x00BFFF);              
 
   # --- SENSOR 3: GRID ---
   s3_entity: "sensor.foxess_grid_consumption_power"
-  s3_icon: "\uf102"
   s3_label: "Grid Power"
   s3_unit: "W"
   s3_tap_action: "script.dummy_script"
+  s3_icon: "\uf102"
+
+  s3_icon_logic: |-
+    return "${s3_icon}";
+    
+  s3_color_logic: |-
+    if (x > 3000) return lv_color_hex(0xFF5252); 
+    return lv_color_hex(0xFF6347);               
 
   # --- SENSOR 4: OUTDOOR ---
   s4_entity: "sensor.clima_exterior_temperatura"
-  s4_icon: "\ue1ff"
   s4_label: "Outdoor"
   s4_unit: "°C"
   s4_tap_action: "script.dummy_script"
+  s4_icon: "\ue1ff"
 
-  # --- SENSOR 5: BATTERY ---
+  s4_icon_logic: |-
+    return "${s4_icon}";
+    
+  s4_color_logic: |-
+    if (x > 30) return lv_color_hex(0xFF5252);   
+    if (x > 25) return lv_color_hex(0xFFA500);   
+    if (x < 15) return lv_color_hex(0x00BFFF);   
+    return lv_color_hex(0x32CD32);               
+
+  # --- SENSOR 5: BATTERY (Dynamic Icons) ---
   s5_entity: "sensor.foxess_bat_soc"
-  s5_icon: "\ue1a3" # Default icon (dynamic logic overrides this below)
   s5_label: "Home Battery"
-  s5_unit: "%%"    # Use double % to escape the character
+  s5_unit: "%%"
   s5_tap_action: "script.dummy_script"
+  
+  s5_default_icon: "\uebd2" 
+  s5_all_dynamic_icons: "\uebd2\uebd4\uebe2\uebdd\uebe0\uebd9"
+
+  s5_icon_logic: |-
+    if (x >= 90) return "\uebd2";
+    if (x >= 75) return "\uebd4";
+    if (x >= 50) return "\uebe2";
+    if (x >= 30) return "\uebdd";
+    if (x >= 20) return "\uebe0";
+    return "\uebd9";
+    
+  s5_color_logic: |-
+    if (x >= 90) return lv_color_hex(0x008000);  
+    if (x >= 75) return lv_color_hex(0x269a17);  
+    if (x >= 50) return lv_color_hex(0xa6d51f);  
+    if (x >= 30) return lv_color_hex(0xFFA500);  
+    if (x >= 20) return lv_color_hex(0x8B0000);  
+    return lv_color_hex(0x640B0B);               
 
   # --- SENSOR 6: HUMIDITY ---
   s6_entity: "sensor.clima_exterior_humidade"
-  s6_icon: "\ue798"
   s6_label: "Humidity"
   s6_unit: "%%"
   s6_tap_action: "script.dummy_script"
+  s6_icon: "\ue798"
+
+  s6_icon_logic: |-
+    return "${s6_icon}";
+    
+  s6_color_logic: |-
+    if (x > 80) return lv_color_hex(0x00BFFF);   
+    if (x > 60) return lv_color_hex(0x87CEEB);   
+    if (x < 30) return lv_color_hex(0xFFD700);   
+    return lv_color_hex(0x32CD32);  
 
 http_request:
   timeout: 5s
@@ -155,9 +214,8 @@ font:
   - file: "gfonts://Material Icons"
     id: icon_font_32
     size: 32
-    # IMPORTANT: If you change icons in the header, make sure the glyph code
-    # exists in this list, otherwise it won't appear!
-    glyphs: "\uec0f\uf102\ue1a3\uf061\ue1ff\ue798\uebd2\uebd4\uebe2\uebdd\uebe0\uebd9"
+    # Auto-populates based on your substitutions!
+    glyphs: "${s1_icon}${s2_icon}${s3_icon}${s4_icon}${s5_all_dynamic_icons}${s6_icon}"
 
 # --- TIME ---
 time:
@@ -212,9 +270,7 @@ sensor:
             - 1.00 -> 0.30  # 1.0V -> 30% (Drop quickly)
             - 1.40 -> 0.05  # 1.4V -> 5% (Minimum)
             - 3.00 -> 0.05  # Safety clamp
-      
       - clamp: {min_value: 0.05, max_value: 1.00}
-    
     on_value:
       then:
         - logger.log: 
@@ -226,10 +282,8 @@ sensor:
             transition_length: 1s
 
   # ==============================================================================
-  #  SENSORS
+  #  HA SENSOR DATA INJECTION
   # ==============================================================================
-
-  # S1: Solar
   - platform: homeassistant
     id: ha_sensor_1
     entity_id: ${s1_entity}
@@ -240,12 +294,13 @@ sensor:
             text: !lambda 'return str_sprintf("%.0f${s1_unit}", x);'
         - lvgl.label.update:
             id: icon_s1
+            text: !lambda |-
+              ${s1_icon_logic}
+        - lvgl.label.update:
+            id: icon_s1
             text_color: !lambda |-
-              if (x > 2000) return lv_color_hex(0xFFA500);
-              if (x > 0) return lv_color_hex(0xFFD700);
-              return lv_color_hex(0x888888);
+              ${s1_color_logic}
 
-  # S2: Water
   - platform: homeassistant
     id: ha_sensor_2
     entity_id: ${s2_entity}
@@ -256,13 +311,13 @@ sensor:
             text: !lambda 'return str_sprintf("%.1f${s2_unit}", x);'
         - lvgl.label.update:
             id: icon_s2
+            text: !lambda |-
+              ${s2_icon_logic}
+        - lvgl.label.update:
+            id: icon_s2
             text_color: !lambda |-
-              if (x >= 45) return lv_color_hex(0xE05400);
-              if (x >= 40) return lv_color_hex(0x33A400);
-              if (x >= 30) return lv_color_hex(0x28FFB6);
-              return lv_color_hex(0x00BFFF);
+              ${s2_color_logic}
 
-  # S3: Grid
   - platform: homeassistant
     id: ha_sensor_3
     entity_id: ${s3_entity}
@@ -273,11 +328,13 @@ sensor:
             text: !lambda 'return str_sprintf("%.0f${s3_unit}", x);'
         - lvgl.label.update:
             id: icon_s3
+            text: !lambda |-
+              ${s3_icon_logic}
+        - lvgl.label.update:
+            id: icon_s3
             text_color: !lambda |-
-              if (x > 3000) return lv_color_hex(0xFF5252);
-              return lv_color_hex(0xFF6347);
+              ${s3_color_logic}
 
-  # S4: Outdoor
   - platform: homeassistant
     id: ha_sensor_4
     entity_id: ${s4_entity}
@@ -288,13 +345,13 @@ sensor:
             text: !lambda 'return str_sprintf("%.1f${s4_unit}", x);'
         - lvgl.label.update:
             id: icon_s4
+            text: !lambda |-
+              ${s4_icon_logic}
+        - lvgl.label.update:
+            id: icon_s4
             text_color: !lambda |-
-              if (x > 30) return lv_color_hex(0xFF5252);
-              if (x > 25) return lv_color_hex(0xFFA500);
-              if (x < 15) return lv_color_hex(0x00BFFF);
-              return lv_color_hex(0x32CD32);
+              ${s4_color_logic}
 
-  # S5: Battery
   - platform: homeassistant
     id: ha_sensor_5
     entity_id: ${s5_entity}
@@ -306,21 +363,12 @@ sensor:
         - lvgl.label.update:
             id: icon_s5
             text: !lambda |-
-              if (x >= 90) return "\uebd2";
-              if (x >= 75) return "\uebd4";
-              if (x >= 50) return "\uebe2";
-              if (x >= 30) return "\uebdd";
-              if (x >= 20) return "\uebe0";
-              return "\uebd9";
+              ${s5_icon_logic}
+        - lvgl.label.update:
+            id: icon_s5
             text_color: !lambda |-
-              if (x >= 90) return lv_color_hex(0x008000);
-              if (x >= 75) return lv_color_hex(0x269a17);
-              if (x >= 50) return lv_color_hex(0xa6d51f);
-              if (x >= 30) return lv_color_hex(0xFFA500);
-              if (x >= 20) return lv_color_hex(0x8B0000);
-              return lv_color_hex(0x640B0B);
+              ${s5_color_logic}
 
-  # S6: Humidity
   - platform: homeassistant
     id: ha_sensor_6
     entity_id: ${s6_entity}
@@ -331,12 +379,12 @@ sensor:
             text: !lambda 'return str_sprintf("%.0f${s6_unit}", x);'
         - lvgl.label.update:
             id: icon_s6
+            text: !lambda |-
+              ${s6_icon_logic}
+        - lvgl.label.update:
+            id: icon_s6
             text_color: !lambda |-
-              if (x > 80) return lv_color_hex(0x00BFFF);
-              if (x > 60) return lv_color_hex(0x87CEEB);
-              if (x < 30) return lv_color_hex(0xFFD700);
-              return lv_color_hex(0x32CD32);
-
+              ${s6_color_logic}
 
 # ==============================================================================
 #  GRAPHICAL INTERFACE (LVGL)
@@ -382,7 +430,7 @@ lvgl:
                   id: icon_s1
                   text: "${s1_icon}"
                   text_font: icon_font_32
-                  text_color: 0xFFD700
+                  text_color: 0x888888
                   align: LEFT_MID
                   x: 5
               - label:
@@ -422,7 +470,7 @@ lvgl:
                   id: icon_s2
                   text: "${s2_icon}"
                   text_font: icon_font_32
-                  text_color: 0x00BFFF
+                  text_color: 0x888888
                   align: LEFT_MID
                   x: 5
               - label:
@@ -462,7 +510,7 @@ lvgl:
                   id: icon_s3
                   text: "${s3_icon}"
                   text_font: icon_font_32
-                  text_color: 0xFF6347
+                  text_color: 0x888888
                   align: LEFT_MID
                   x: 5
               - label:
@@ -502,7 +550,7 @@ lvgl:
                   id: icon_s4
                   text: "${s4_icon}"
                   text_font: icon_font_32
-                  text_color: 0xFFFFFF
+                  text_color: 0x888888
                   align: LEFT_MID
                   x: 5
               - label:
@@ -540,9 +588,9 @@ lvgl:
             widgets:
               - label:
                   id: icon_s5
-                  text: "${s5_icon}"
+                  text: "${s5_default_icon}"
                   text_font: icon_font_32
-                  text_color: 0x32CD32
+                  text_color: 0x888888
                   align: LEFT_MID
                   x: 5
               - label:
@@ -582,7 +630,7 @@ lvgl:
                   id: icon_s6
                   text: "${s6_icon}"
                   text_font: icon_font_32
-                  text_color: 0x87CEEB
+                  text_color: 0x888888
                   align: LEFT_MID
                   x: 5
               - label:
