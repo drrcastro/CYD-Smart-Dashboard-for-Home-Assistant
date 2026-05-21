@@ -177,7 +177,6 @@ display:
     auto_clear_enabled: false
     invert_colors: false
     color_order: RGB
-    rotation: 180
     dimensions: 
       width: 320
       height: 240
@@ -390,6 +389,7 @@ sensor:
 #  GRAPHICAL INTERFACE (LVGL)
 # ==============================================================================
 lvgl:
+  rotation: 180
   displays: [my_display]
   touchscreens: [my_touchscreen]
   
