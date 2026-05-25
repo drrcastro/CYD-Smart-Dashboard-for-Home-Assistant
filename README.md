@@ -25,7 +25,7 @@ Built with **ESPHome** and **LVGL**, this project allows you to monitor 6 key Ho
 * **Display:** 2.8" ILI9341.
 * **Touch:** XPT2046.
 * **Sensor:** Onboard LDR (Light Dependent Resistor) on GPIO34 for auto-brightness.
-* **Case:** 3D Printed Case ([I used this one](https://www.thingiverse.com/thing:6653040)).
+* **Case:** 3D Printed Case ([I used this one](https://www.thingiverse.com/thing:6653040)) and also made [this one](https://makerworld.com/pt/models/2541785-cyd-2-8-efapel-logus-90-case) if you want to use on EFAPEL switches .
 
 ## 🚀 Installation
 
